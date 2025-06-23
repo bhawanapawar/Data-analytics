@@ -1,0 +1,53 @@
+# Predictive Analysis using Machine Learning - CodTech Internship
+# Author: Your Name
+# Date: 2025-06-23
+
+# 1. Import Libraries
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+# 2. Load Dataset
+df = pd.read_csv("student-mat.csv", sep=';')
+df.head()
+
+# 3. Feature Engineering
+# Let's create a binary target: Pass (1) if final grade G3 >= 10, else Fail (0)
+df['Pass'] = df['G3'].apply(lambda x: 1 if x >= 10 else 0)
+
+# Drop G1, G2, G3 (intermediate grades)
+df = df.drop(columns=['G1', 'G2', 'G3'])
+
+# 4. Encode Categorical Features
+label_cols = df.select_dtypes(include='object').columns
+le = LabelEncoder()
+for col in label_cols:
+    df[col] = le.fit_transform(df[col])
+
+# 5. Feature Selection
+X = df.drop("Pass", axis=1)
+y = df["Pass"]
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# 6. Train Model
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+# 7. Evaluate Model
+y_pred = model.predict(X_test)
+
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+print("\nConfusion Matrix:\n", confusion_matrix(y_test, y_pred))
+
+# 8. Feature Importance Plot
+feat_imp = pd.Series(model.feature_importances_, index=X.columns)
+feat_imp.nlargest(10).plot(kind='barh', title='Top 10 Feature Importances')
+plt.xlabel("Importance Score")
+plt.show()
