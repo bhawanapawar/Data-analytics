@@ -1,0 +1,51 @@
+
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import *
+
+# Initialize Spark Session
+spark = SparkSession.builder \
+    .appName("CodTech Big Data Analysis") \
+    .getOrCreate()
+
+# Load large dataset (replace path if needed)
+df = spark.read.csv("yellow_tripdata_sample.csv", header=True, inferSchema=True)
+
+# Display schema
+df.printSchema()
+
+# Data Cleaning & Type Conversion
+df = df.withColumn("pickup_datetime", to_timestamp("tpep_pickup_datetime")) \
+       .withColumn("dropoff_datetime", to_timestamp("tpep_dropoff_datetime")) \
+       .withColumn("trip_duration_minutes", 
+                   (unix_timestamp("dropoff_datetime") - unix_timestamp("pickup_datetime")) / 60)
+
+# Remove trips with zero or negative duration/fare
+df = df.filter((col("trip_duration_minutes") > 0) & (col("fare_amount") > 0))
+
+# Derive Insights
+
+# 1. Average trip duration and fare
+df.select(mean("trip_duration_minutes").alias("Avg_Duration"),
+          mean("fare_amount").alias("Avg_Fare")).show()
+
+# 2. Peak Hours for Pickups
+df.groupBy(hour("pickup_datetime").alias("Hour")) \
+  .count().orderBy("Hour").show(24)
+
+# 3. Top Pickup Locations
+df.groupBy("PULocationID").count() \
+  .orderBy(desc("count")).show(10)
+
+# 4. Trip distance vs. Fare bucket
+df = df.withColumn("fare_bucket", when(col("fare_amount") < 10, "<10")
+                                    .when(col("fare_amount") < 20, "10-20")
+                                    .otherwise("20+"))
+
+df.groupBy("fare_bucket").agg(avg("trip_distance").alias("Avg_Distance")).show()
+
+# 5. Save cleaned data (optional)
+df.write.csv("cleaned_yellow_tripdata.csv", header=True, mode='overwrite')
+
+# Stop Spark
+spark.stop()
